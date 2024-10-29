@@ -18,7 +18,7 @@ app.use(express.static("public"));
 
 app.use(cookieParser());
 
-app.use("/", (req, res, next) => {
+app.get("/", (req, res, next) => {
     res.send("Welcome to DarshanTech Backend API");
 });
 
