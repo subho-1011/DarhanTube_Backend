@@ -18,6 +18,10 @@ app.use(express.static("public"));
 
 app.use(cookieParser());
 
+app.use("/", (req, res, next) => {
+    res.send("Welcome to DarshanTech Backend API");
+});
+
 // import routes
 import healthCheckRoutes from "./routes/healthCheck.routes.js";
 import authRoutes from "./routes/auth.routes.js";
