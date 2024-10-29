@@ -84,6 +84,7 @@ const loginUserByEmail = asyncHandler(async (req, res) => {
     const cookieOptions = {
         httpOnly: true,
         secure: true,
+        sameSite: "Lax",
     };
 
     return res
@@ -114,6 +115,7 @@ const logoutUser = async (req, res) => {
     const options = {
         httpOnly: true,
         secure: true,
+        sameSite: "Lax",
     };
 
     res.status(200)
@@ -152,15 +154,13 @@ const refreshToken = asyncHandler(async (req, res) => {
     const options = {
         httpOnly: true,
         secure: true,
+        sameSite: "Lax",
     };
 
-    return (
-        res
-            .status(200)
-            .cookie("accessToken", newAccessToken, options)
-            // .cookie("refreshToken", newRefreshToken, options)
-            .json(new ApiSuccessResponse(200, "Refresh token successful", { user: user.toJSON() }))
-    );
+    return res
+        .status(200)
+        .cookie("accessToken", newAccessToken, options)
+        .json(new ApiSuccessResponse(200, "Refresh token successful", { user: user.toJSON() }));
 });
 
 // verify access token
