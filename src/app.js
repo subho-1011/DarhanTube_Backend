@@ -21,7 +21,7 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 app.get("/", (req, res, next) => {
-    res.send("Welcome to DarshanTech Backend API");
+    res.send("Welcome to DarshanTech Backend API", CORS_ORIGIN);
 });
 
 // import routes
