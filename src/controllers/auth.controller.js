@@ -87,7 +87,7 @@ const loginUserByEmail = asyncHandler(async (req, res) => {
             httpOnly: true,
             secure: true,
         })
-        .cookie("refreshToken", refreshToken, cookieOptions, {
+        .cookie("refreshToken", refreshToken, {
             httpOnly: true,
             secure: true,
             sameSite: "none",
