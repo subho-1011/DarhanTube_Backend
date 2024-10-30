@@ -21,7 +21,14 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 app.get("/", (req, res, next) => {
-    res.send("Welcome to DarshanTech Backend API", CORS_ORIGIN);
+    res.json({
+        success: true,
+        code: 200,
+        message: "Welcome to Darshan Tube Backend",
+        github: "https://github.com/subho-1011",
+        cors: CORS_ORIGIN,
+        NODE_ENV: process.env.NODE_ENV,
+    });
 });
 
 // import routes
