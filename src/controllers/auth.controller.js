@@ -86,6 +86,7 @@ const loginUserByEmail = asyncHandler(async (req, res) => {
         .cookie("accessToken", accessToken, {
             httpOnly: true,
             secure: true,
+            sameSite: "Lax",
         })
         .cookie("refreshToken", refreshToken, {
             httpOnly: true,
@@ -116,6 +117,7 @@ const logoutUser = async (req, res) => {
         .clearCookie("accessToken", {
             httpOnly: true,
             secure: true,
+            sameSite: "Lax",
         })
         .clearCookie("refreshToken", {
             httpOnly: true,
@@ -157,6 +159,7 @@ const refreshToken = asyncHandler(async (req, res) => {
         .cookie("accessToken", newAccessToken, {
             httpOnly: true,
             secure: true,
+            sameSite: "Lax",
         })
         .json(new ApiSuccessResponse(200, "Refresh token successful", { user: user.toJSON() }));
 });
