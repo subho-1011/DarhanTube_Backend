@@ -81,16 +81,17 @@ const loginUserByEmail = asyncHandler(async (req, res) => {
 
     await User.findOneAndUpdate({ _id: user._id }, { $set: { refreshToken } }, { new: true });
 
-    const cookieOptions = {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-    };
-
     return res
         .status(200)
-        .cookie("accessToken", accessToken, cookieOptions)
-        .cookie("refreshToken", refreshToken, cookieOptions)
+        .cookie("accessToken", accessToken, {
+            httpOnly: true,
+            secure: true,
+        })
+        .cookie("refreshToken", refreshToken, cookieOptions, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+        })
         .json(new ApiSuccessResponse(200, "Login successful", { user: user.toJSON() }));
 });
 
@@ -111,16 +112,16 @@ const logoutUser = async (req, res) => {
         throw new ApiErrorResponse(401, "User not found, unauthorized access");
     }
 
-    // clear cookies
-    const options = {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-    };
-
     res.status(200)
-        .clearCookie("accessToken", options)
-        .clearCookie("refreshToken", options)
+        .clearCookie("accessToken", {
+            httpOnly: true,
+            secure: true,
+        })
+        .clearCookie("refreshToken", {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+        })
         .json(new ApiSuccessResponse(200, "Logout successful"));
 };
 
@@ -151,15 +152,12 @@ const refreshToken = asyncHandler(async (req, res) => {
     const newAccessToken = user.generateAccessToken();
     // const newRefreshToken = user.generateRefreshToken();
 
-    const options = {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-    };
-
     return res
         .status(200)
-        .cookie("accessToken", newAccessToken, options)
+        .cookie("accessToken", newAccessToken, {
+            httpOnly: true,
+            secure: true,
+        })
         .json(new ApiSuccessResponse(200, "Refresh token successful", { user: user.toJSON() }));
 });
 
