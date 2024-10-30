@@ -2,9 +2,7 @@ import app from "./app.js";
 import dotenv from "dotenv";
 import dbConfig from "./config/dbConfig.js";
 
-if (process.env.NODE_ENV !== "production") {
-    dotenv.config({ path: "./.env" });
-}
+dotenv.config({ path: "./.env" });
 
 (async () => {
     try {
