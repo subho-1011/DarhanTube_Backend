@@ -39,8 +39,6 @@ const uploadVideo = asyncHandler(async (req, res) => {
     // save
     await video.save();
 
-    fs.unlinkSync(videoPath);
-
     return res.status(200).json(new ApiSuccessResponse(200, "Video uploaded as draft successfully", { video }));
 });
 
