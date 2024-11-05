@@ -70,7 +70,7 @@ const videoSchema = new Schema(
         },
         tags: [
             {
-                type: mongoose.Schema.Types.ObjectId,
+                type: String,
                 ref: "Tag",
             },
         ],

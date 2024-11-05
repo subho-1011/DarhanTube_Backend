@@ -34,7 +34,6 @@ export const cloudinaryVideoHtmlExtract = (html) => {
  * Uploads a local image to cloudinary and returns the response
  * @param {string} localFilePath - The path of the local image
  * @param {string} folder - The folder to upload image to
-//  * @returns {Promise<{res :UploadApiResponse}>} The response from cloudinary
  */
 const uploadImageOnCloudinary = async (localFilePath, folder) => {
     try {
