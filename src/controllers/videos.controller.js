@@ -2,6 +2,8 @@ import User from "../models/user.model.js";
 import Video from "../models/video.model.js";
 import Tag from "../models/videoTag.model.js";
 
+import fs from "fs";
+
 import * as cloudinary from "../utils/cloudinary.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { genarateUniqueVideoSlug } from "../utils/slugify.js";
@@ -36,6 +38,8 @@ const uploadVideo = asyncHandler(async (req, res) => {
 
     // save
     await video.save();
+
+    fs.unlinkSync(videoPath);
 
     return res.status(200).json(new ApiSuccessResponse(200, "Video uploaded as draft successfully", { video }));
 });
