@@ -1,6 +1,21 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import ms from "ms";
+
+const sessionSchema = new Schema({
+    refreshToken: {
+        type: String,
+        required: true,
+    },
+    expiresAt: {
+        type: Date,
+        required: true,
+    },
+    _id: false,
+});
+
+export const Session = mongoose.model("Session", sessionSchema);
 
 const userSchema = new Schema(
     {
@@ -46,11 +61,11 @@ const userSchema = new Schema(
         coverImageUrl: {
             type: String,
         },
-        refreshToken: String,
         isVerified: {
             type: Boolean,
             default: false,
         },
+        sessions: [sessionSchema],
     },
     { timestamps: true }
 );
@@ -87,7 +102,7 @@ userSchema.methods.generateAccessToken = function () {
 
 // Generate Refresh Token
 userSchema.methods.generateRefreshToken = function () {
-    return jwt.sign(
+    const refreshToken = jwt.sign(
         {
             _id: this._id,
         },
@@ -96,6 +111,9 @@ userSchema.methods.generateRefreshToken = function () {
             expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN,
         }
     );
+    const expiresAt = Date.now() + ms(process.env.REFRESH_TOKEN_EXPIRES_IN);
+
+    return { refreshToken, expiresAt };
 };
 
 userSchema.methods.toJSON = function () {

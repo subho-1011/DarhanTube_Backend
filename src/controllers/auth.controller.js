@@ -8,17 +8,9 @@ import {
     ChangePasswordFormSchema,
     EmailVerificationFormSchema,
 } from "../validators/user-validations.js";
-import {
-    ApiErrorResponse,
-    ApiReridectResponse,
-    ApiSuccessResponse,
-} from "../utils/handleApiResponse.js";
+import { ApiErrorResponse, ApiReridectResponse, ApiSuccessResponse } from "../utils/handleApiResponse.js";
 
-import {
-    emailVerificationMail,
-    forgotPasswordMail,
-    passwordResetMail,
-} from "../utils/sendEmail.js";
+import { emailVerificationMail, forgotPasswordMail, passwordResetMail } from "../utils/sendEmail.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Profile from "../models/profile.model.js";
 import UserSettings from "../models/userSettings.model.js";
@@ -36,8 +28,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
-        const errorMessage =
-            existingUser.email === email ? "Email already exists" : "Username already exists";
+        const errorMessage = existingUser.email === email ? "Email already exists" : "Username already exists";
         throw new ApiErrorResponse(400, errorMessage);
     }
 
@@ -48,9 +39,7 @@ const registerUser = asyncHandler(async (req, res) => {
     await VerifyEmailOtp.create({ email, otp: hashedOtp });
     await emailVerificationMail(email, otp);
 
-    res.status(201).json(
-        new ApiSuccessResponse(201, "User created successfully", { user: newUser.toJSON() })
-    );
+    res.status(201).json(new ApiSuccessResponse(201, "User created successfully", { user: newUser.toJSON() }));
 
     await Profile.create({ owner: newUser._id, firstName: name.split(" ")[0] });
     await UserSettings.create({ owner: newUser._id });
@@ -71,15 +60,21 @@ const loginUserByEmail = asyncHandler(async (req, res) => {
     }
 
     if (!user.isVerified) {
-        return res
-            .status(301)
-            .json(new ApiReridectResponse(301, "Email not verified", "/auth/verify-email"));
+        return res.status(301).json(new ApiReridectResponse(301, "Email not verified", "/auth/verify-email"));
     }
 
     const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const { refreshToken, expiresAt } = user.generateRefreshToken();
 
-    await User.findOneAndUpdate({ _id: user._id }, { $set: { refreshToken } }, { new: true });
+    const newSession = { refreshToken, expiresAt };
+
+    if (user.sessions.length >= 2) {
+        user.sessions.shift();
+        await user.save({ validateBeforeSave: false });
+    }
+
+    user.sessions.push(newSession);
+    await user.save({ validateBeforeSave: false });
 
     return res
         .status(200)
@@ -92,8 +87,9 @@ const loginUserByEmail = asyncHandler(async (req, res) => {
             httpOnly: true,
             secure: true,
             sameSite: "none",
+            expires: new Date(expiresAt),
         })
-        .json(new ApiSuccessResponse(200, "Login successful", { user: user.toJSON() }));
+        .json(new ApiSuccessResponse(200, "Login successful", { user: { ...user.toJSON(), sessions: undefined } }));
 });
 
 // logout user
@@ -105,7 +101,13 @@ const logoutUser = async (req, res) => {
     // delete refresh token from database
     const user = await User.findOneAndUpdate(
         { _id: req.user._id },
-        { $unset: { refreshToken: 1 } },
+        {
+            $pull: {
+                sessions: {
+                    refreshToken: req.cookies?.refreshToken,
+                },
+            },
+        },
         { new: true }
     );
 
@@ -134,10 +136,7 @@ const refreshToken = asyncHandler(async (req, res) => {
         throw new ApiErrorResponse(401, "Refresh token not found, unauthorized access");
     }
 
-    const decodedRefreshToken = jwt.verify(
-        refreshTokenFromRequest,
-        process.env.REFRESH_TOKEN_SECRET
-    );
+    const decodedRefreshToken = jwt.verify(refreshTokenFromRequest, process.env.REFRESH_TOKEN_SECRET);
     if (!decodedRefreshToken) {
         throw new ApiErrorResponse(401, "Refresh token invalid, unauthorized access");
     }
@@ -147,7 +146,7 @@ const refreshToken = asyncHandler(async (req, res) => {
         throw new ApiErrorResponse(401, "User not found, unauthorized access");
     }
 
-    if (user.refreshToken !== refreshTokenFromRequest) {
+    if (!user.sessions.find((session) => session.refreshToken === refreshTokenFromRequest)) {
         throw new ApiErrorResponse(401, "Refresh token invalid, unauthorized access");
     }
 
@@ -161,7 +160,14 @@ const refreshToken = asyncHandler(async (req, res) => {
             secure: true,
             sameSite: "none",
         })
-        .json(new ApiSuccessResponse(200, "Refresh token successful", { user: user.toJSON() }));
+        .json(
+            new ApiSuccessResponse(200, "Refresh token successful", {
+                user: {
+                    ...user.toJSON(),
+                    sessions: undefined,
+                },
+            })
+        );
 });
 
 // verify access token
