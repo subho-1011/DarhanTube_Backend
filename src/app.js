@@ -36,12 +36,14 @@ import healthCheckRoutes from "./routes/healthCheck.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import videosRoutes from "./routes/videos.routes.js";
+import channelRoutes from "./routes/channels.routes.js";
 
 // define routes
 app.use("/api/v1/healthCheck", healthCheckRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/videos", videosRoutes);
+app.use("/api/v1/channels", channelRoutes);
 
 // error handler
 import { ApiErrorResponse } from "./utils/handleApiResponse.js";

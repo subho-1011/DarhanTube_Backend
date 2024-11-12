@@ -17,6 +17,10 @@ const videoCommentSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
+        isEdited: {
+            type: Boolean,
+            default: false,
+        },
         replies: [
             {
                 type: mongoose.Schema.Types.ObjectId,

@@ -1,40 +1,56 @@
 import { Router } from "express";
-import * as middleware from "../middlewares/index.js";
+import { upload, validate, verifyJwt } from "../middlewares/index.js";
 
 const router = Router();
 
 // Routes
 import {
-    uploadVideo,
-    getUserDraftVideos,
-    getVideoById,
     getAllVideos,
-    updateMetaDataOfVideo,
-    deleteVideo,
-    publishVideo,
-    uploadOrUpdateThumbnail,
-    toggleVisibility,
     getVideoBySlug,
     getUserVideos,
+    getUserDraftVideos,
+    getVideoById,
+    uploadVideo,
+    updateMetaDataOfVideo,
+    deleteVideo,
+    uploadOrUpdateThumbnail,
+    publishVideo,
+    toggleVisibility,
+    toggleLikeOnVideo,
+    getCommentsOfVideo,
+    postCommentOnVideo,
+    updateCommentOfVideo,
+    deleteCommentOfVideo,
+    toggleLikeOnCommentOfVideo,
 } from "../controllers/videos.controller.js";
 import { VideoMetaDataFormSchema, VideoUpdateFormSchema } from "../validators/videos-valiadtions.js";
 
 router.route("/").get(getAllVideos);
-router.route("/slug/:slug").get(getVideoBySlug);
 
-router.use(middleware.verifyJwt);
+// Public routes
+
+router.use(verifyJwt);
 
 router.route("/drafts").get(getUserDraftVideos);
+router.route("/users/:username").get(getUserVideos);
+router.route("/users/:username/drafts").get(getUserDraftVideos);
 
-router.route("/upload").post(middleware.upload.fields([{ name: "video", maxCount: 1 }]), uploadVideo);
+router.route("/upload").post(upload.fields([{ name: "video", maxCount: 1 }]), uploadVideo);
 
 router.route("/:videoId").get(getVideoById);
-router.route("/:videoId").patch(middleware.validate(VideoUpdateFormSchema), updateMetaDataOfVideo);
+router.route("/:videoId").patch(validate(VideoUpdateFormSchema), updateMetaDataOfVideo);
 router.route("/:videoId").delete(deleteVideo);
-router.route("/:videoId/thumbnail").patch(middleware.upload.single("thumbnail"), uploadOrUpdateThumbnail);
-router.route("/:videoId/publish").post(middleware.validate(VideoMetaDataFormSchema), publishVideo);
+router.route("/:videoId/thumbnail").patch(upload.single("thumbnail"), uploadOrUpdateThumbnail);
+router.route("/:videoId/publish").post(validate(VideoMetaDataFormSchema), publishVideo);
 router.route("/:videoId/public").patch(toggleVisibility);
 
-router.route(`/users/:username`).get(getUserVideos);
+// for other users actions
+router.route("/slug/:slug").get(getVideoBySlug);
+router.route("/:videoId/like").post(toggleLikeOnVideo);
+router.route("/:videoId/comments").get(getCommentsOfVideo);
+router.route("/:videoId/comments").post(postCommentOnVideo);
+router.route("/:videoId/comments/:commentId").patch(updateCommentOfVideo);
+router.route("/:videoId/comments/:commentId").delete(deleteCommentOfVideo);
+router.route("/:videoId/comments/:commentId/like").post(toggleLikeOnCommentOfVideo);
 
 export default router;

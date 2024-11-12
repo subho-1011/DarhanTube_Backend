@@ -1,8 +1,10 @@
+import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import Video from "../models/video.model.js";
 import Tag from "../models/videoTag.model.js";
-
-import fs from "fs";
+import VideoLike from "../models/videoLike.model.js";
+import VideoComment from "../models/videoComment.model.js";
+import VideoCommentLike from "../models/videoCommentLike.js";
 
 import * as cloudinary from "../utils/cloudinary.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -86,6 +88,11 @@ const getAllVideos = asyncHandler(async (req, res) => {
                         },
                     },
                 ],
+            },
+        },
+        {
+            $addFields: {
+                owner: { $first: "$owner" },
             },
         },
         {
@@ -240,20 +247,6 @@ const toggleVisibility = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiSuccessResponse(200, "Video visibility toggled successfully", { video }));
 });
 
-// get video by slug
-const getVideoBySlug = asyncHandler(async (req, res) => {
-    const video = await Video.findOne({ slug: req.params?.slug }).populate({
-        path: "owner",
-        select: "_id name username avatarUrl",
-    });
-
-    if (!video) {
-        throw ApiErrorResponse(404, "Video not found");
-    }
-
-    return res.status(200).json(new ApiSuccessResponse(200, "Video found successfully", { video }));
-});
-
 // get user videos
 const getUserVideos = asyncHandler(async (req, res) => {
     const username = req.params?.username;
@@ -291,6 +284,296 @@ const getUserVideos = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiSuccessResponse(200, "User videos found successfully", { videos, totalVideos }));
 });
 
+// public routes
+// get video by slug
+const getVideoBySlug = asyncHandler(async (req, res) => {
+    const videos = await Video.aggregate([
+        {
+            $match: {
+                slug: req.params?.slug,
+                isPublic: true,
+            },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            name: 1,
+                            username: 1,
+                            avatarUrl: 1,
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: "subscriptions",
+                            localField: "_id",
+                            foreignField: "subscribedToId",
+                            as: "subscribers",
+                        },
+                    },
+                    {
+                        $addFields: {
+                            subscribers: { $size: "$subscribers" },
+                            isSubscribed: {
+                                $in: [req.user?._id, "$subscribers.subscriberId"],
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $set: {
+                owner: { $first: "$owner" },
+            },
+        },
+        {
+            $lookup: {
+                from: "videolikes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likes",
+            },
+        },
+        {
+            $addFields: {
+                likes: { $size: "$likes" },
+                isLiked: {
+                    $in: [req.user?._id, "$likes.likedBy"],
+                },
+                isOwner: {
+                    $eq: ["$owner._id", req.user?._id],
+                },
+            },
+        },
+        {
+            $project: {
+                __v: 0,
+            },
+        },
+    ]);
+
+    if (!videos || videos.length === 0) {
+        throw ApiErrorResponse(404, "Video not found");
+    }
+
+    return res.status(200).json(
+        new ApiSuccessResponse(200, "Video found successfully", {
+            video: videos[0],
+        })
+    );
+});
+
+// toggle like on video
+const toggleLikeOnVideo = asyncHandler(async (req, res) => {
+    const video = await Video.findById(req.params?.videoId);
+    if (!video) {
+        throw ApiErrorResponse(404, "Video not found");
+    }
+
+    const like = await VideoLike.findOne({ video: video._id, likedBy: req.user._id });
+    if (like) {
+        await VideoLike.deleteOne({ _id: like._id });
+    } else {
+        const newLike = new VideoLike({
+            video: video._id,
+            likedBy: req.user._id,
+        });
+        await newLike.save();
+    }
+
+    return res
+        .status(200)
+        .json(new ApiSuccessResponse(200, like ? "Video liked remove successfully" : "Video liked successfully"));
+});
+
+const getCommentsOfVideo = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 7 } = req.query;
+
+    const videoComments = await VideoComment.aggregate([
+        {
+            $match: {
+                video: new mongoose.Types.ObjectId(req.params?.videoId),
+                parentComment: { $exists: false },
+            },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            name: 1,
+                            username: 1,
+                            avatarUrl: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                owner: { $first: "$owner" },
+            },
+        },
+        {
+            $lookup: {
+                from: "videocomments",
+                localField: "_id",
+                foreignField: "parentComment",
+                as: "replies",
+            },
+        },
+        {
+            $lookup: {
+                from: "videocommentlikes",
+                localField: "_id",
+                foreignField: "comment",
+                as: "likes",
+            },
+        },
+        {
+            $addFields: {
+                likes: { $size: "$likes" },
+                isLiked: {
+                    $cond: {
+                        if: {
+                            $in: [req.user?._id, "$likes.likedBy"],
+                        },
+                        then: true,
+                        else: false,
+                    },
+                },
+                isOwner: {
+                    $cond: {
+                        if: {
+                            $eq: ["$owner._id", req.user?._id],
+                        },
+                        then: true,
+                        else: false,
+                    },
+                },
+                noOfReplies: { $size: "$replies" },
+            },
+        },
+        {
+            $sort: {
+                createdAt: -1,
+            },
+        },
+        {
+            $skip: (parseInt(page) - 1) * parseInt(limit),
+        },
+        {
+            $limit: parseInt(limit),
+        },
+        {
+            $project: {
+                __v: 0,
+            },
+        },
+    ]);
+
+    if (!videoComments) {
+        return res.status(200).json(new ApiSuccessResponse(200, "No comments found", { comments: [] }));
+    }
+
+    const totalComments = await VideoComment.countDocuments({
+        video: req.params?.videoId,
+        parentComment: { $exists: false },
+    });
+
+    return res.status(200).json(
+        new ApiSuccessResponse(200, "Video comments fetched successfully", {
+            comments: videoComments,
+            totalComments,
+        })
+    );
+});
+
+// post comment on video
+const postCommentOnVideo = asyncHandler(async (req, res) => {
+    const video = await Video.findById(req.params?.videoId);
+    if (!video) {
+        throw ApiErrorResponse(404, "Video not found");
+    }
+
+    const { text } = req.body;
+
+    const comment = new VideoComment({
+        text,
+        video: video._id,
+        owner: req.user._id,
+    });
+
+    await comment.save();
+
+    const newComment = await VideoComment.findById(comment._id).populate({
+        path: "owner",
+        select: "_id name username avatarUrl",
+    });
+
+    return res.status(200).json(new ApiSuccessResponse(200, "Comment posted successfully", { comment: newComment }));
+});
+
+const updateCommentOfVideo = asyncHandler(async (req, res) => {
+    const comment = await VideoComment.findById(req.params?.commentId);
+    if (!comment) {
+        throw ApiErrorResponse(404, "Comment not found");
+    }
+
+    const { text } = req.body;
+
+    comment.text = text;
+    comment.isEdited = true;
+    await comment.save();
+
+    return res.status(200).json(new ApiSuccessResponse(200, "Comment updated successfully", { comment }));
+});
+
+const deleteCommentOfVideo = asyncHandler(async (req, res) => {
+    const comment = await VideoComment.findById(req.params?.commentId);
+    if (!comment) {
+        throw ApiErrorResponse(404, "Comment not found");
+    }
+
+    await VideoComment.deleteOne({ _id: comment._id });
+
+    return res.status(200).json(new ApiSuccessResponse(200, "Comment deleted successfully", { comment }));
+});
+
+const toggleLikeOnCommentOfVideo = asyncHandler(async (req, res) => {
+    const comment = await VideoComment.findById(req.params?.commentId);
+    if (!comment) {
+        throw ApiErrorResponse(404, "Comment not found");
+    }
+
+    const like = await VideoCommentLike.findOne({ comment: comment._id, likedBy: req.user._id });
+    if (like) {
+        await VideoCommentLike.deleteOne({ _id: like._id });
+    } else {
+        const newLike = new VideoCommentLike({
+            comment: comment._id,
+            likedBy: req.user._id,
+        });
+        await newLike.save();
+    }
+
+    return res
+        .status(200)
+        .json(new ApiSuccessResponse(200, like ? "Comment liked remove successfully" : "Comment liked successfully"));
+});
+
 export {
     getAllVideos,
     getUserDraftVideos,
@@ -303,4 +586,11 @@ export {
     deleteVideo,
     toggleVisibility,
     getUserVideos,
+    // public routes
+    toggleLikeOnVideo,
+    getCommentsOfVideo,
+    postCommentOnVideo,
+    updateCommentOfVideo,
+    deleteCommentOfVideo,
+    toggleLikeOnCommentOfVideo,
 };
