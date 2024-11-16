@@ -61,8 +61,15 @@ const videoSchema = new Schema(
             type: String,
             required: true,
         },
+        thumbnail: {
+            url: { type: String },
+            publicId: { type: String },
+            _id: false,
+        },
         videoUrls: {
             originalVideoUrl: { type: String, required: true },
+            posterUrl: { type: String },
+            publicId: { type: String },
             "240p": videoDataSchema,
             "360p": videoDataSchema,
             "480p": videoDataSchema,

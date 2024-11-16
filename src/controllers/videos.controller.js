@@ -27,7 +27,11 @@ const uploadVideo = asyncHandler(async (req, res) => {
 
     // save as draft
     const video = new Video({
-        videoUrls: { originalVideoUrl: videoUrls.originalVideoUrl },
+        videoUrls: {
+            originalVideoUrl: videoUrls.originalVideoUrl,
+            posterUrl: videoUrls.videoDatas["720p"].posterUrl,
+            publicId: videoUrls.publicId,
+        },
         duration: videoUrls.duration,
         owner: req.user._id,
         status: "draft",
@@ -36,7 +40,12 @@ const uploadVideo = asyncHandler(async (req, res) => {
     // add draft data to video
     video.title = `${req.user?.username}-draft-${Date.now()}`;
     video.slug = video.title;
+    // FIXME: change this to 720p
     video.thumbnailUrl = videoUrls.videoDatas["720p"].posterUrl;
+    video.thumbnail = {
+        url: videoUrls.videoDatas["720p"].posterUrl,
+        publicId: videoUrls.videoDatas["720p"].publicId,
+    };
 
     // save
     await video.save();
@@ -166,6 +175,7 @@ const updateMetaDataOfVideo = asyncHandler(async (req, res) => {
     video.title = title;
     video.slug = await genarateUniqueVideoSlug(title);
     video.description = description;
+    video.status = "published";
 
     video.tags = await Promise.all(
         tags.map(async (tag) => {
@@ -201,11 +211,19 @@ const uploadOrUpdateThumbnail = asyncHandler(async (req, res) => {
     }
 
     const oldThumbnail = video.thumbnailUrl;
+    const oldThumbnailPublicId = video.thumbnail.publicId;
+    // FIXME: UPDATE THIS
     video.thumbnailUrl = thumbnail.secure_url;
+    video.thumbnail.publicId = thumbnail.public_id;
+    video.thumbnail.url = thumbnail.secure_url;
     await video.save();
 
     if (oldThumbnail) {
         await cloudinary.deleteImageToCloudinary(oldThumbnail);
+    }
+
+    if (oldThumbnailPublicId) {
+        await cloudinary.cloudinary.uploader.destroy(oldThumbnailPublicId, { resource_type: "image" });
     }
 
     return res.status(200).json(new ApiSuccessResponse(200, "Thumbnail updated successfully", { video }));
@@ -220,6 +238,17 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
     const thumbnail = video.thumbnailUrl;
     const videoUrl = video.videoUrl;
+
+    // UPDATE THIS
+    const thumbnailPublicId = video.thumbnail.publicId;
+    const videoPublicId = video.videoUrls.publicId;
+
+    if (thumbnailPublicId) {
+        await cloudinary.cloudinary.uploader.destroy(thumbnailPublicId, { resource_type: "image" });
+    }
+    if (videoPublicId) {
+        await cloudinary.cloudinary.uploader.destroy(videoPublicId, { resource_type: "video" });
+    }
 
     await Video.deleteOne({ _id: video._id });
 
@@ -282,6 +311,95 @@ const getUserVideos = asyncHandler(async (req, res) => {
     const totalVideos = await Video.countDocuments({ owner: userId });
 
     return res.status(200).json(new ApiSuccessResponse(200, "User videos found successfully", { videos, totalVideos }));
+});
+
+// user liked videos
+const getUserLikedVideos = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 12 } = req.query;
+
+    const likedVideos = await VideoLike.aggregate([
+        {
+            $match: {
+                likedBy: req.user?._id,
+            },
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "video",
+                foreignField: "_id",
+                as: "video",
+                pipeline: [
+                    {
+                        $project: {
+                            __v: 0,
+                            updatedAt: 0,
+                            isPublic: 0,
+                            status: 0,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                video: { $first: "$video" },
+            },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "video.owner",
+                foreignField: "_id",
+                as: "video.owner",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            name: 1,
+                            username: 1,
+                            avatarUrl: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                "video.owner": { $first: "$video.owner" },
+                "video.likedAt": "$createdAt",
+            },
+        },
+        {
+            $project: {
+                video: 1,
+            },
+        },
+        {
+            $sort: {
+                createdAt: -1,
+            },
+        },
+        {
+            $skip: (parseInt(page) - 1) * parseInt(limit),
+        },
+        {
+            $limit: parseInt(limit),
+        },
+    ]);
+
+    if (!likedVideos) {
+        return res.status(200).json(new ApiSuccessResponse(200, "No liked videos found", { videos: [] }));
+    }
+
+    const totalVideos = await VideoLike.countDocuments({ likedBy: req.user?._id });
+
+    return res.status(200).json(
+        new ApiSuccessResponse(200, "Liked videos fetched successfully", {
+            videos: likedVideos.map((likedVideo) => likedVideo.video),
+            totalVideos,
+        })
+    );
 });
 
 // public routes
@@ -360,7 +478,7 @@ const getVideoBySlug = asyncHandler(async (req, res) => {
     ]);
 
     if (!videos || videos.length === 0) {
-        throw ApiErrorResponse(404, "Video not found");
+        throw new ApiErrorResponse(404, "Video not found");
     }
 
     return res.status(200).json(
@@ -586,6 +704,7 @@ export {
     deleteVideo,
     toggleVisibility,
     getUserVideos,
+    getUserLikedVideos,
     // public routes
     toggleLikeOnVideo,
     getCommentsOfVideo,
