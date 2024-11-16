@@ -10,6 +10,7 @@ import * as cloudinary from "../utils/cloudinary.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { genarateUniqueVideoSlug } from "../utils/slugify.js";
 import { ApiErrorResponse, ApiSuccessResponse } from "../utils/handleApiResponse.js";
+import jwt from "jsonwebtoken";
 
 // upload video
 const uploadVideo = asyncHandler(async (req, res) => {
@@ -405,6 +406,14 @@ const getUserLikedVideos = asyncHandler(async (req, res) => {
 // public routes
 // get video by slug
 const getVideoBySlug = asyncHandler(async (req, res) => {
+    const accessToken = req.cookies?.accessToken;
+
+    let user = null;
+    if (accessToken) {
+        const decodedToken = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
+        user = await User.findById(decodedToken?._id);
+    }
+
     const videos = await Video.aggregate([
         {
             $match: {
@@ -439,7 +448,7 @@ const getVideoBySlug = asyncHandler(async (req, res) => {
                         $addFields: {
                             subscribers: { $size: "$subscribers" },
                             isSubscribed: {
-                                $in: [req.user?._id, "$subscribers.subscriberId"],
+                                $in: [user?._id, "$subscribers.subscriberId"],
                             },
                         },
                     },
@@ -463,10 +472,10 @@ const getVideoBySlug = asyncHandler(async (req, res) => {
             $addFields: {
                 likes: { $size: "$likes" },
                 isLiked: {
-                    $in: [req.user?._id, "$likes.likedBy"],
+                    $in: [user?._id, "$likes.likedBy"],
                 },
                 isOwner: {
-                    $eq: ["$owner._id", req.user?._id],
+                    $eq: ["$owner._id", user?._id],
                 },
             },
         },
@@ -513,6 +522,14 @@ const toggleLikeOnVideo = asyncHandler(async (req, res) => {
 
 const getCommentsOfVideo = asyncHandler(async (req, res) => {
     const { page = 1, limit = 7 } = req.query;
+
+    const accessToken = req.cookies?.accessToken;
+
+    let user = null;
+    if (accessToken) {
+        const decodedToken = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
+        user = await User.findById(decodedToken?._id);
+    }
 
     const videoComments = await VideoComment.aggregate([
         {
@@ -566,7 +583,7 @@ const getCommentsOfVideo = asyncHandler(async (req, res) => {
                 isLiked: {
                     $cond: {
                         if: {
-                            $in: [req.user?._id, "$likes.likedBy"],
+                            $in: [user?._id, "$likes.likedBy"],
                         },
                         then: true,
                         else: false,
@@ -575,7 +592,7 @@ const getCommentsOfVideo = asyncHandler(async (req, res) => {
                 isOwner: {
                     $cond: {
                         if: {
-                            $eq: ["$owner._id", req.user?._id],
+                            $eq: ["$owner._id", user?._id],
                         },
                         then: true,
                         else: false,
