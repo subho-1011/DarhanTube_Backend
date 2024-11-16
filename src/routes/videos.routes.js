@@ -29,6 +29,7 @@ import { VideoMetaDataFormSchema, VideoUpdateFormSchema } from "../validators/vi
 // Public routes
 router.route("/").get(getAllVideos);
 router.route("/slug/:slug").get(getVideoBySlug);
+router.route("/:videoId/comments").get(getCommentsOfVideo);
 
 router.use(verifyJwt);
 
@@ -48,7 +49,6 @@ router.route("/:videoId/public").patch(toggleVisibility);
 
 // for other users actions
 router.route("/:videoId/like").post(toggleLikeOnVideo);
-router.route("/:videoId/comments").get(getCommentsOfVideo);
 router.route("/:videoId/comments").post(postCommentOnVideo);
 router.route("/:videoId/comments/:commentId").patch(updateCommentOfVideo);
 router.route("/:videoId/comments/:commentId").delete(deleteCommentOfVideo);
