@@ -22,18 +22,20 @@ import {
     updateCommentOfVideo,
     deleteCommentOfVideo,
     toggleLikeOnCommentOfVideo,
+    getUserLikedVideos,
 } from "../controllers/videos.controller.js";
 import { VideoMetaDataFormSchema, VideoUpdateFormSchema } from "../validators/videos-valiadtions.js";
 
-router.route("/").get(getAllVideos);
-
 // Public routes
+router.route("/").get(getAllVideos);
+router.route("/slug/:slug").get(getVideoBySlug);
 
 router.use(verifyJwt);
 
 router.route("/drafts").get(getUserDraftVideos);
 router.route("/users/:username").get(getUserVideos);
 router.route("/users/:username/drafts").get(getUserDraftVideos);
+router.route("/liked-videos/@me").get(getUserLikedVideos);
 
 router.route("/upload").post(upload.fields([{ name: "video", maxCount: 1 }]), uploadVideo);
 
@@ -45,7 +47,6 @@ router.route("/:videoId/publish").post(validate(VideoMetaDataFormSchema), publis
 router.route("/:videoId/public").patch(toggleVisibility);
 
 // for other users actions
-router.route("/slug/:slug").get(getVideoBySlug);
 router.route("/:videoId/like").post(toggleLikeOnVideo);
 router.route("/:videoId/comments").get(getCommentsOfVideo);
 router.route("/:videoId/comments").post(postCommentOnVideo);
