@@ -86,7 +86,7 @@ const uploadVideoOnCloudinary = async (localFilePath, folder) => {
         });
 
         fs.unlinkSync(localFilePath);
-        return { originalVideoUrl, videoDatas, duration: response.duration };
+        return { originalVideoUrl, videoDatas, duration: response.duration, publicId: response.public_id };
     } catch (error) {
         fs.unlinkSync(localFilePath);
         return null;

@@ -24,12 +24,10 @@ const watchHistorySchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
-        watchedSession: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "WatchSession",
-            },
-        ],
+        watchedSession: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "WatchSession",
+        },
     },
     { timestamps: true }
 );

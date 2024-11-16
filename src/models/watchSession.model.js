@@ -7,6 +7,11 @@ const watchSessionSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
+        video: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Video",
+            required: true,
+        },
         device: {
             type: String,
             enum: ["Desktop", "Mobile", "Tablet"],
@@ -18,6 +23,14 @@ const watchSessionSchema = new mongoose.Schema(
             default: "Windows",
         },
         totalDuration: {
+            type: Number,
+            default: 0,
+        },
+        isCompleted: {
+            type: Boolean,
+            default: false,
+        },
+        timestamp: {
             type: Number,
             default: 0,
         },
