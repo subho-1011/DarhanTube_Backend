@@ -94,6 +94,8 @@ export const createWatchHistory = asyncHandler(async (req, res) => {
     await WatchSession.findOneAndDelete({ owner: req.user?._id, video: videoId });
 
     if (watchHistory) {
+        watchHistory.lastWatchedAt = new Date();
+        await watchHistory.save();
         return res.status(200).json(new ApiSuccessResponse(200, "Watch history already exists"));
     }
 
@@ -119,6 +121,7 @@ export const createWatchHistory = asyncHandler(async (req, res) => {
 export const updateWatchHistory = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     const { watchedDuration = 0, timestamp = 0 } = req.body;
+    console.log(watchedDuration, timestamp);
 
     const video = await Video.findById(videoId);
     if (!video) {
@@ -134,15 +137,34 @@ export const updateWatchHistory = asyncHandler(async (req, res) => {
         return res.status(404).json(new ApiErrorResponse(404, "Watch history not found"));
     }
 
-    let watchSession = await WatchSession.findOne({
+    const watchSession = await WatchSession.findOne({
         owner: req.user?._id,
         video: videoId,
     });
+    console.log(watchSession);
 
     // If the watch session completed or timestamp 95% of viedo duration, delete it and create a new one
-    if (watchSession.isCompleted || watchSession.timestamp >= video.duration * 0.95) {
+    if (watchSession && watchSession.timestamp >= video.duration * 0.95) {
         await WatchSession.findOneAndDelete({ owner: req.user?._id, video: videoId });
 
+        const watchSession = new WatchSession({
+            owner: req.user?._id,
+            video: videoId,
+            totalDuration: watchedDuration,
+            timestamp,
+        });
+        await watchSession.save();
+
+        watchHistory.repeated += 1;
+        watchHistory.lastWatchedAt = new Date();
+        watchHistory.totalDuration += watchedDuration;
+        watchHistory.watchedSession = watchSession._id;
+        await watchHistory.save();
+
+        return res.status(200).json(new ApiSuccessResponse(200, "Watch history updated"));
+    }
+
+    if (!watchSession) {
         watchSession = new WatchSession({
             owner: req.user?._id,
             video: videoId,
@@ -152,7 +174,6 @@ export const updateWatchHistory = asyncHandler(async (req, res) => {
 
         await watchSession.save();
 
-        watchHistory.repeated += 1;
         watchHistory.lastWatchedAt = new Date();
         watchHistory.totalDuration += watchedDuration;
         watchHistory.watchedSession = watchSession._id;
