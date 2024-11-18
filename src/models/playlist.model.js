@@ -18,14 +18,17 @@ const playlistSchema = new mongoose.Schema(
         description: {
             type: String,
         },
+        posterUrl: {
+            type: String,
+        },
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true,
         },
-        private: {
+        isPublic: {
             type: Boolean,
-            default: true,
+            default: false,
         },
         videos: [
             {

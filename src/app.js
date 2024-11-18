@@ -39,6 +39,7 @@ import videosRoutes from "./routes/videos.routes.js";
 import channelRoutes from "./routes/channels.routes.js";
 import watchLaterRoutes from "./routes/watch-later.routes.js";
 import watchHistoryRoutes from "./routes/watch-history.routes.js";
+import playlistRoutes from "./routes/playlists.routes.js";
 
 // define routes
 app.use("/api/v1/healthCheck", healthCheckRoutes);
@@ -48,6 +49,7 @@ app.use("/api/v1/videos", videosRoutes);
 app.use("/api/v1/channels", channelRoutes);
 app.use("/api/v1/watch-later", watchLaterRoutes);
 app.use("/api/v1/watch-history", watchHistoryRoutes);
+app.use("/api/v1/playlists", playlistRoutes);
 
 // error handler
 import { ApiErrorResponse } from "./utils/handleApiResponse.js";
