@@ -710,9 +710,19 @@ const toggleLikeOnCommentOfVideo = asyncHandler(async (req, res) => {
 });
 
 const searchVideos = asyncHandler(async (req, res) => {
-    const { q, page = 1, limit = 10 } = req.query;
+    const { q, page = 1, limit = 10, title } = req.query;
     if (!q) {
         throw ApiErrorResponse(400, "What are you looking for?");
+    }
+
+    if (title == "true") {
+        const videos = await Video.find({ title: { $regex: q, $options: "i" } }).sort({ createdAt: -1 });
+
+        if (!videos) {
+            return res.status(200).json(new ApiSuccessResponse(200, "No videos found", { videos: [] }));
+        }
+
+        return res.status(200).json(new ApiSuccessResponse(200, "Videos found successfully", { videos }));
     }
 
     const videos = await Video.aggregate([
@@ -770,6 +780,7 @@ const searchVideos = asyncHandler(async (req, res) => {
             },
         },
     ]);
+    console.log(videos);
 
     if (!videos) {
         return res
