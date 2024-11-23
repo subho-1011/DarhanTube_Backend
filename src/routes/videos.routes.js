@@ -23,12 +23,14 @@ import {
     deleteCommentOfVideo,
     toggleLikeOnCommentOfVideo,
     getUserLikedVideos,
+    searchVideos,
 } from "../controllers/videos.controller.js";
 import { VideoMetaDataFormSchema, VideoUpdateFormSchema } from "../validators/videos-valiadtions.js";
 
 // Public routes
 router.route("/").get(getAllVideos);
 router.route("/slug/:slug").get(getVideoBySlug);
+router.route("/search").get(searchVideos);
 router.route("/:videoId/comments").get(getCommentsOfVideo);
 
 router.use(verifyJwt);

@@ -709,6 +709,85 @@ const toggleLikeOnCommentOfVideo = asyncHandler(async (req, res) => {
         .json(new ApiSuccessResponse(200, like ? "Comment liked remove successfully" : "Comment liked successfully"));
 });
 
+const searchVideos = asyncHandler(async (req, res) => {
+    const { q, page = 1, limit = 10 } = req.query;
+    if (!q) {
+        throw ApiErrorResponse(400, "What are you looking for?");
+    }
+
+    const videos = await Video.aggregate([
+        {
+            $match: {
+                status: "published",
+                isPublic: true,
+                $or: [
+                    { title: { $regex: q, $options: "i" } },
+                    { description: { $regex: q, $options: "i" } },
+                    { tags: { $in: [q] } },
+                ],
+            },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            name: 1,
+                            username: 1,
+                            avatarUrl: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                owner: { $first: "$owner" },
+            },
+        },
+        {
+            $sort: {
+                createdAt: -1,
+            },
+        },
+        { $project: { __v: 0, updatedAt: 0, isPublic: 0, status: 0 } },
+        {
+            $facet: {
+                videos: [
+                    {
+                        $skip: (parseInt(page) - 1) * parseInt(limit),
+                    },
+                    {
+                        $limit: parseInt(limit),
+                    },
+                ],
+                metadata: [{ $count: "total" }, { $addFields: { page: Number(page) } }],
+            },
+        },
+    ]);
+
+    if (!videos) {
+        return res
+            .status(200)
+            .json(new ApiSuccessResponse(200, "No videos found", { videos: [], metadata: { total: 0, page: 1 } }));
+    }
+
+    return res.status(200).json(
+        new ApiSuccessResponse(200, "Videos found successfully", {
+            videos: videos[0].videos,
+            metadata: {
+                total: Math.ceil(videos[0].metadata[0]?.total / limit) || 0,
+                page: videos[0].metadata[0]?.page || 1,
+            },
+        })
+    );
+});
+
 export {
     getAllVideos,
     getUserDraftVideos,
@@ -729,4 +808,6 @@ export {
     updateCommentOfVideo,
     deleteCommentOfVideo,
     toggleLikeOnCommentOfVideo,
+    // search
+    searchVideos,
 };
