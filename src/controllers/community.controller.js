@@ -63,7 +63,6 @@ export const getPosts = asyncHandler(async (req, res) => {
             },
         },
     ]);
-    console.log(posts[0].posts);
 
     return res.status(200).json(
         new ApiSuccessResponse(200, "Posts fetched successfully", {
