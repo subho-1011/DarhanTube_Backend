@@ -41,6 +41,7 @@ import watchLaterRoutes from "./routes/watch-later.routes.js";
 import watchHistoryRoutes from "./routes/watch-history.routes.js";
 import playlistRoutes from "./routes/playlists.routes.js";
 import communityRoutes from "./routes/community.routes.js";
+import supportQuestionRoutes from "./routes/support-question.routes.js";
 
 // define routes
 app.use("/api/v1/healthCheck", healthCheckRoutes);
@@ -52,6 +53,7 @@ app.use("/api/v1/watch-later", watchLaterRoutes);
 app.use("/api/v1/watch-history", watchHistoryRoutes);
 app.use("/api/v1/playlists", playlistRoutes);
 app.use("/api/v1/community-posts", communityRoutes);
+app.use("/api/v1/support-questions", supportQuestionRoutes);
 
 // error handler
 import { ApiErrorResponse } from "./utils/handleApiResponse.js";
