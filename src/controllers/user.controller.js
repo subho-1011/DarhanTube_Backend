@@ -1,20 +1,14 @@
 import User from "../models/user.model.js";
 import Profile from "../models/profile.model.js";
 
-import {
-    ApiErrorResponse,
-    ApiReridectResponse,
-    ApiSuccessResponse,
-} from "../utils/handleApiResponse.js";
+import { ApiErrorResponse, ApiReridectResponse, ApiSuccessResponse } from "../utils/handleApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { deleteImageToCloudinary, uploadImageOnCloudinary } from "../utils/cloudinary.js";
 
 import { EditProfileFormSchema } from "../validators/profile-validations.js";
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-    return res
-        .status(200)
-        .json(new ApiSuccessResponse(200, "Current user fetched successfully", { user: req.user }));
+    return res.status(200).json(new ApiSuccessResponse(200, "Current user fetched successfully", { user: req.user }));
 });
 
 const getUserProfile = asyncHandler(async (req, res) => {
@@ -24,9 +18,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
         throw new ApiErrorResponse(404, "Profile not found");
     }
 
-    return res
-        .status(200)
-        .json(new ApiSuccessResponse(200, "Profile fetched successfully", { profile }));
+    return res.status(200).json(new ApiSuccessResponse(200, "Profile fetched successfully", { profile }));
 });
 
 const updateProfile = asyncHandler(async (req, res) => {
@@ -60,9 +52,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 
     await profile.save();
 
-    return res
-        .status(200)
-        .json(new ApiSuccessResponse(200, "Profile updated successfully", { profile }));
+    return res.status(200).json(new ApiSuccessResponse(200, "Profile updated successfully", { profile }));
 });
 
 const changeProfileAvatar = asyncHandler(async (req, res) => {
@@ -89,14 +79,13 @@ const changeProfileAvatar = asyncHandler(async (req, res) => {
     profile.profileAvatarUrl = avatar.url;
 
     await profile.save();
+    await User.findByIdAndUpdate(_id, { avatarUrl: avatar.url });
 
     if (oldAvatarUrl) {
         await deleteImageToCloudinary(oldAvatarUrl);
     }
 
-    return res
-        .status(200)
-        .json(new ApiSuccessResponse(200, "Profile updated successfully", { profile }));
+    return res.status(200).json(new ApiSuccessResponse(200, "Profile updated successfully", { profile }));
 });
 
 const changeProfileCoverImage = asyncHandler(async (req, res) => {
@@ -123,20 +112,13 @@ const changeProfileCoverImage = asyncHandler(async (req, res) => {
     profile.coverImageUrl = coverImage.url;
 
     await profile.save();
+    await User.findByIdAndUpdate(_id, { coverImageUrl: coverImage.url });
 
     if (oldCoverImageUrl) {
         await deleteImageToCloudinary(oldCoverImageUrl);
     }
 
-    return res
-        .status(200)
-        .json(new ApiSuccessResponse(200, "Profile updated successfully", { profile }));
+    return res.status(200).json(new ApiSuccessResponse(200, "Profile updated successfully", { profile }));
 });
 
-export {
-    getCurrentUser,
-    getUserProfile,
-    updateProfile,
-    changeProfileAvatar,
-    changeProfileCoverImage,
-};
+export { getCurrentUser, getUserProfile, updateProfile, changeProfileAvatar, changeProfileCoverImage };
