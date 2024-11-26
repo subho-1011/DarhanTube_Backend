@@ -39,10 +39,10 @@ const registerUser = asyncHandler(async (req, res) => {
     await VerifyEmailOtp.create({ email, otp: hashedOtp });
     await emailVerificationMail(email, otp);
 
-    res.status(201).json(new ApiSuccessResponse(201, "User created successfully", { user: newUser.toJSON() }));
-
-    await Profile.create({ owner: newUser._id, firstName: name.split(" ")[0] });
+    await Profile.create({ owner: newUser._id, username, firstName: name.split(" ")[0] });
     await UserSettings.create({ owner: newUser._id });
+
+    return res.status(201).json(new ApiSuccessResponse(201, "User created successfully", { user: newUser.toJSON() }));
 });
 
 // login user
@@ -59,7 +59,12 @@ const loginUserByEmail = asyncHandler(async (req, res) => {
         throw new ApiErrorResponse(401, "Invalid credentials");
     }
 
-    if (!user.isVerified) {
+    // check if email is not verified and greater than 24 hours
+    if (
+        !user.isVerified &&
+        process.env.NODE_ENV !== "development" &&
+        Date.now() - user.createdAt > 24 * 60 * 60 * 1000
+    ) {
         return res.status(301).json(new ApiReridectResponse(301, "Email not verified", "/auth/verify-email"));
     }
 

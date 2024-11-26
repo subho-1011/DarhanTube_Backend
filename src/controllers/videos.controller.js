@@ -41,8 +41,6 @@ const uploadVideo = asyncHandler(async (req, res) => {
     // add draft data to video
     video.title = `${req.user?.username}-draft-${Date.now()}`;
     video.slug = video.title;
-    // FIXME: change this to 720p
-    video.thumbnailUrl = videoUrls.videoDatas["720p"].posterUrl;
     video.thumbnail = {
         url: videoUrls.videoDatas["720p"].posterUrl,
         publicId: videoUrls.videoDatas["720p"].publicId,
@@ -157,8 +155,8 @@ const publishVideo = asyncHandler(async (req, res) => {
         })
     );
 
-    isPublished ? (video.isPublic = true) : (video.isPublic = false);
-    video.status = "published";
+    video.status = isPublished ? "published" : "draft";
+    video.isPublic = isPublished;
     await video.save();
 
     return res.status(200).json(new ApiSuccessResponse(200, "Video published successfully", { video }));
@@ -211,17 +209,10 @@ const uploadOrUpdateThumbnail = asyncHandler(async (req, res) => {
         throw ApiErrorResponse(500, "Error uploading thumbnail");
     }
 
-    const oldThumbnail = video.thumbnailUrl;
     const oldThumbnailPublicId = video.thumbnail.publicId;
-    // FIXME: UPDATE THIS
-    video.thumbnailUrl = thumbnail.secure_url;
     video.thumbnail.publicId = thumbnail.public_id;
     video.thumbnail.url = thumbnail.secure_url;
     await video.save();
-
-    if (oldThumbnail) {
-        await cloudinary.deleteImageToCloudinary(oldThumbnail);
-    }
 
     if (oldThumbnailPublicId) {
         await cloudinary.cloudinary.uploader.destroy(oldThumbnailPublicId, { resource_type: "image" });
