@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { deleteImageToCloudinary, uploadImageOnCloudinary } from "../utils/cloudinary.js";
 
 import { EditProfileFormSchema } from "../validators/profile-validations.js";
+import UserSettings from "../models/userSettings.model.js";
 
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiSuccessResponse(200, "Current user fetched successfully", { user: req.user }));
@@ -121,4 +122,72 @@ const changeProfileCoverImage = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiSuccessResponse(200, "Profile updated successfully", { profile }));
 });
 
-export { getCurrentUser, getUserProfile, updateProfile, changeProfileAvatar, changeProfileCoverImage };
+const getUserSettings = asyncHandler(async (req, res) => {
+    const settings = await UserSettings.findOne({ owner: req.user?._id }).select("-__v -owner -createdAt -updatedAt");
+    if (!settings) {
+        throw new ApiErrorResponse(404, "Settings not found");
+    }
+
+    return res.status(200).json(new ApiSuccessResponse(200, "Settings fetched successfully", { settings }));
+});
+
+const updateUserSettings = asyncHandler(async (req, res) => {
+    const { theme, emailNotifications, notifications, language, privacy } = req.body;
+
+    const settings = await UserSettings.findOne({ owner: req.user?._id });
+    if (!settings) {
+        throw new ApiErrorResponse(404, "Settings not found");
+    }
+
+    settings.theme = theme ?? settings.theme;
+    settings.emailNotifications = emailNotifications ?? settings.emailNotifications;
+    settings.notifications = notifications ?? settings.notifications;
+    settings.language = language ?? settings.language;
+    settings.privacy = privacy ?? settings.privacy;
+
+    await settings.save();
+
+    return res.status(200).json(new ApiSuccessResponse(200, "Settings updated successfully", { settings }));
+});
+
+const deleteCurrentUser = asyncHandler(async (req, res) => {
+    const { _id } = req.user;
+
+    const { username, password } = req.body;
+    if (!username || !password) {
+        throw new ApiErrorResponse(400, "Username and password are required");
+    }
+
+    const checkUsername = username === req.user.username;
+    if (!checkUsername) {
+        throw new ApiErrorResponse(400, "Username is incorrect");
+    }
+
+    const checkPassword = await req.user.isPasswordMatch(password);
+    if (!checkPassword) {
+        throw new ApiErrorResponse(400, "Password is incorrect");
+    }
+
+    await User.findByIdAndDelete(_id);
+    await Profile.findOneAndDelete({ owner: _id });
+    await UserSettings.findOneAndDelete({ owner: _id });
+    await deleteImageToCloudinary(req.user.avatarUrl);
+    await deleteImageToCloudinary(req.user.coverImageUrl);
+
+    return res
+        .clearCookie("accessToken")
+        .clearCookie("refreshToken")
+        .status(200)
+        .json(new ApiReridectResponse(200, "User deleted successfully", "/"));
+});
+
+export {
+    getCurrentUser,
+    getUserProfile,
+    updateProfile,
+    changeProfileAvatar,
+    changeProfileCoverImage,
+    getUserSettings,
+    updateUserSettings,
+    deleteCurrentUser,
+};

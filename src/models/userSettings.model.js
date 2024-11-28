@@ -7,9 +7,9 @@ const settingsSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
-        darkMode: {
-            type: Boolean,
-            default: false,
+        theme: {
+            type: String,
+            enum: ["light", "dark", "system"],
         },
         emailNotifications: {
             type: Boolean,
